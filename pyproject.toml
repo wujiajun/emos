@@ -10,8 +10,20 @@ requires-python = ">=3.12"
 dependencies = []
 
 [project.scripts]
-emos = "emos:main"
+emos = "emos.main:main"
 
 [build-system]
 requires = ["uv_build>=0.12.17,<0.13.0"]
 build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 120
+
+[tool.black]
+line-length = 120
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.2",
+]
+
