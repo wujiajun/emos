@@ -1,5 +1,5 @@
 from emos.application.actions import MENUS, ActionExecutor
-from emos.domain.models import Role, product, user
+from emos.domain.models import Role, product, rule, user
 from emos.outputs import Printer
 
 
@@ -39,7 +39,7 @@ def main() -> None:
 def init(
     users: list[dict],
     products: list[dict],
-    rule: dict,
+    discount_rule: dict,
 ) -> None:
     # Users: 2 buyers, 2 sellers, 1 admin, 1 disabled buyer
     users.append(user(username="alice", password="alice123", role=Role.BUYER.value, active=True))
@@ -63,7 +63,7 @@ def init(
     products.append(product(name="Noise-Cancelling Headphones", price=149.99, seller="sara", stock=5))
 
     # Discount rule (threshold=100.0, percentage=10)
-    rule.update(rule(threshold=100.0, percentage=10))
+    discount_rule.update(rule(threshold=100.0, percentage=10))
 
 
 if __name__ == "__main__":
