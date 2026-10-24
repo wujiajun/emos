@@ -192,7 +192,7 @@ class ActionExecutor:
             return False, "Please log in first"
 
         if required_role.value != user.get("role"):
-            return False, f"Access denied for your role[{user.get("role")}]"
+            return False, f"Access denied for your role[{user.get('role')}]"
 
         return True, ""
 
@@ -207,7 +207,7 @@ class ActionExecutor:
                     return None, "Account is disabled"
                 if password != user.get("password"):
                     return None, "Incorrect password"
-                return user, f"Login successful. Welcome {user.get("username")}"
+                return user, f"Login successful. Welcome {user.get("username")}."
         return None, "User not found"
 
     def _browse(
