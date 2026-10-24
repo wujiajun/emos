@@ -1,21 +1,23 @@
-from emos.application.Actions import handle_action
-from emos.domian.models import product, user
+from emos.application.actions import ActionExcutor, MENUS
+from emos.domian.models import product, user, Role, discount_rule
 from emos.outputs import Printer
 
 
 def main() -> None:
     users: list[dict] = []
     products: list[dict] = []
-    init(users, products)
+    discount_rule: dict = {}
+    init(users, products, discount_rule)
     Printer.welcome()
     Printer.users(users=users)
     Printer.products(products=products)
+    Printer.discount_rule(discount_rule)
 
     current_user = None
     running = True
 
     while running is True:
-        actions = Printer.menus(current_user)
+        actions = Printer.menus(current_user, MENUS)
         user_input = input("Select an option > ").strip()
         try:
             choice = int(user_input)
@@ -24,11 +26,12 @@ def main() -> None:
             continue
         if choice == 0:
             running = False
-        elif 0 <= choice <= len(actions):
+        elif not (0 <= choice <= len(actions)):
             Printer.error("Invalid option. Please choose a number from the menu.")
         else:
             action = actions[choice]
-            current_user = handle_action(action=action, current_user=current_user)
+            actionExcutor = ActionExcutor(users=users, products=products, discount_rule=discount_rule)
+            current_user = actionExcutor.handle_action(action=action, current_user=current_user)
 
     Printer.goodbye(current_user)
 
@@ -40,14 +43,15 @@ if __name__ == "__main__":
 def init(
     users: list[dict],
     products: list[dict],
+    rule: dict,
 ) -> None:
     # Users: 2 buyers, 2 sellers, 1 admin, 1 disabled buyer
-    users.append(user(username="alice", password="alice123", role="Buyer", active=True))
-    users.append(user(username="bob", password="bob123", role="Buyer", active=True))
-    users.append(user(username="sam", password="sam123", role="Seller", active=True))
-    users.append(user(username="sara", password="sara123", role="Seller", active=True))
-    users.append(user(username="ada", password="ada123", role="Admin", active=True))
-    users.append(user(username="dave", password="dave123", role="Buyer", active=False))
+    users.append(user(username="alice", password="alice123", role=Role.BUYER.value, active=True))
+    users.append(user(username="bob", password="bob123", role=Role.BUYER.value, active=True))
+    users.append(user(username="sam", password="sam123", role=Role.SELLER.value, active=True))
+    users.append(user(username="sara", password="sara123", role=Role.SELLER.value, active=True))
+    users.append(user(username="ada", password="ada123", role=Role.ADMIN.value, active=True))
+    users.append(user(username="dave", password="dave123", role=Role.BUYER.value, active=False))
 
     # Products: sam's items
     products.append(product(name="USB Cable", price=9.99, seller="sam", stock=50))
@@ -61,3 +65,6 @@ def init(
     products.append(product(name="Laptop Stand", price=50.00, seller="sara", stock=15))
     products.append(product(name="Webcam", price=59.99, seller="sara", stock=8))
     products.append(product(name="Noise-Cancelling Headphones", price=149.99, seller="sara", stock=5))
+
+    # Discount rule (threshold=100.0, percentage=10)
+    rule.update(discount_rule(threshold=100.0, percentage=10))

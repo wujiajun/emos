@@ -1,4 +1,14 @@
 # role: Buyer, Seller, Admin
+from enum import StrEnum
+
+
+class Role(StrEnum):
+    GUEST = "Guest"
+    BUYER = "Buyer"
+    SELLER = "Seller"
+    ADMIN = "Admin"
+
+
 def user(
     username: str,
     password: str,
@@ -24,4 +34,14 @@ def product(
         "price": price,
         "seller": seller,
         "stock": stock,
+    }
+
+
+def discount_rule(
+    threshold: float,
+    percentage: float,
+) -> dict:
+    return {
+        "threshold": threshold,
+        "percentage": percentage,
     }
