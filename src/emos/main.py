@@ -1,5 +1,5 @@
-from emos.application.actions import ActionExcutor, MENUS
-from emos.domian.models import product, user, Role, discount_rule
+from emos.application.actions import MENUS, ActionExcutor
+from emos.domian.models import Role, discount_rule, product, user
 from emos.outputs import Printer
 
 
