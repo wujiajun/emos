@@ -1,5 +1,5 @@
-from emos.application.actions import MENUS, ActionExcutor
-from emos.domian.models import Role, discount_rule, product, user
+from emos.application.actions import MENUS, ActionExecutor
+from emos.domain.models import Role, product, user
 from emos.outputs import Printer
 
 
@@ -30,14 +30,10 @@ def main() -> None:
             Printer.error("Invalid option. Please choose a number from the menu.")
         else:
             action = actions[choice]
-            actionExcutor = ActionExcutor(users=users, products=products, discount_rule=discount_rule)
-            current_user = actionExcutor.handle_action(action=action, current_user=current_user)
+            actionExecutor = ActionExecutor(users=users, products=products, discount_rule=discount_rule)
+            current_user = actionExecutor.handle_action(action=action, current_user=current_user)
 
     Printer.goodbye(current_user)
-
-
-if __name__ == "__main__":
-    main()
 
 
 def init(
@@ -67,4 +63,8 @@ def init(
     products.append(product(name="Noise-Cancelling Headphones", price=149.99, seller="sara", stock=5))
 
     # Discount rule (threshold=100.0, percentage=10)
-    rule.update(discount_rule(threshold=100.0, percentage=10))
+    rule.update(rule(threshold=100.0, percentage=10))
+
+
+if __name__ == "__main__":
+    main()

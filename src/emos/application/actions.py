@@ -1,7 +1,7 @@
 from enum import StrEnum
 from getpass import getpass
 
-from emos.domian.models import Role
+from emos.domain.models import Role
 from emos.outputs import Printer
 
 
@@ -47,7 +47,7 @@ MENUS: dict[str | None, list[tuple[str, str]]] = {
 }
 
 
-class ActionExcutor:
+class ActionExecutor:
     def __init__(self, users: list[dict], products: list[dict], discount_rule: dict):
         self._users = users
         self._products = products
@@ -97,16 +97,16 @@ class ActionExcutor:
             try:
                 price_raw = input("New price: ").strip()
                 new_price = float(price_raw) if price_raw else None
-                if new_price <= 0:
+                if new_price is None or new_price <= 0:
                     Printer.error("Price must be greater than 0.")
                     return current_user
             except ValueError:
                 Printer.error("Invalid price. Please enter a number.")
                 return current_user
-            successed, message = self._set_price(
+            succeeded, message = self._set_price(
                 current_user=current_user, product_name=product_name, new_price=new_price
             )
-            if successed is False:
+            if succeeded is False:
                 Printer.error(message)
             else:
                 Printer.success(message)
@@ -115,8 +115,8 @@ class ActionExcutor:
             Printer.users(self._list_users())
         elif Action.DISABLE_USER.value == action:
             disable_username = input("User name to disable: ").strip()
-            successed, message = self._disable_user(disable_username)
-            if successed is False:
+            succeeded, message = self._disable_user(disable_username)
+            if succeeded is False:
                 Printer.error(message)
             else:
                 Printer.success(message)
@@ -130,8 +130,8 @@ class ActionExcutor:
             except ValueError:
                 Printer.error("Invalid role. Choose Buyer, Seller or Admin.")
                 return current_user
-            successed, message = self._change_role(change_role_username, new_role)
-            if successed is False:
+            succeeded, message = self._change_role(change_role_username, new_role)
+            if succeeded is False:
                 Printer.error(message)
             else:
                 Printer.success(message)
@@ -147,8 +147,8 @@ class ActionExcutor:
             except ValueError:
                 Printer.error("Please enter numbers only, without '$' or '%' signs.")
                 return current_user
-            successed, message = self._discount(new_threshold=new_threshold, new_percentage=new_percentage)
-            if successed is False:
+            succeeded, message = self._discount(new_threshold=new_threshold, new_percentage=new_percentage)
+            if succeeded is False:
                 Printer.error(message)
             else:
                 Printer.success(message)
@@ -219,7 +219,7 @@ class ActionExcutor:
         return [
             product
             for product in self._products
-            if (not keyword or keyword in product.get("name"))
+            if (not keyword or keyword.lower() in product["name"].lower())
             and (min_price is None or product["price"] >= min_price)
             and (max_price is None or product["price"] <= max_price)
         ]
@@ -234,7 +234,7 @@ class ActionExcutor:
         username = current_user.get("username")
         product = None
         for p in self._products:
-            if p.get("name") == product_name:
+            if p.get("name").lower() == product_name.lower():
                 product = p
                 break
 
@@ -264,6 +264,8 @@ class ActionExcutor:
         return True, f"User '{username}' has been disabled."
 
     def _change_role(self, username: str, role: Role) -> tuple[bool, str]:
+        if role == Role.GUEST:
+            return False, "Invalid role. Choose Buyer, Seller or Admin."
         user = self._find_user(username=username)
         if user is None:
             return False, "User not found."

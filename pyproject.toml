@@ -1,7 +1,7 @@
 [project]
 name = "emos"
 version = "0.1.0"
-description = "Add your description here"
+description = "Command-line simulation of an e-commerce order management system with role-based access (CMPS-3000 Project 1)."
 readme = "README.md"
 authors = [
     { name = "Jason", email = "wujiajun1020@gmail.com" }

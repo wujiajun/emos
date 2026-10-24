@@ -29,7 +29,7 @@ class Printer:
         print(f"{'#':<3} {'Name':<28} {'Price':>8}  {'Seller':<7} {'Stock':>5}")
         print("-" * 56)
         if len(products) == 0:
-            print("[INFO] No products found matching your search.")
+            print("[INFO] No products found.")
         else:
             for i, p in enumerate(products, start=1):
                 stock = "OUT" if p["stock"] == 0 else p["stock"]

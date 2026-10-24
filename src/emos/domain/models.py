@@ -37,7 +37,7 @@ def product(
     }
 
 
-def discount_rule(
+def rule(
     threshold: float,
     percentage: float,
 ) -> dict:
