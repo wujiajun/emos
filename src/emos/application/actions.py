@@ -225,7 +225,7 @@ class ActionExecutor:
                     return None, "Account is disabled"
                 if password != user.get("password"):
                     return None, "Incorrect password"
-                return user, f"Login successful. Welcome {user.get("username")}."
+                return user, f"Login successful. Welcome {user.get('username')}."
         return None, "User not found"
 
     def _browse(
@@ -317,11 +317,11 @@ class ActionExecutor:
                 return p
         return None
 
-    def _read_order_input(self) -> dict[dict[str, int], PaymentMethod]:
+    def _read_order_input(self) -> tuple[list[dict], PaymentMethod | None]:
         print("\n=== Place Order ===")
         print("Press Enter on an empty product name when you are done.")
 
-        cart: list[dict[str, int]] = []
+        cart: list[dict] = []
 
         while True:
             finished, product = self._read_order_product()
@@ -357,7 +357,7 @@ class ActionExecutor:
             else:
                 return False, product
 
-    def _read_order_product_quantity(self) -> PaymentMethod:
+    def _read_order_product_quantity(self) -> int:
         while True:
             quantity = None
             try:
@@ -391,7 +391,7 @@ class ActionExecutor:
             cart.append({"name": product["name"], "price": product["price"], "quantity": quantity})
         return True
 
-    def _read_order_payment_method(self) -> float:
+    def _read_order_payment_method(self) -> PaymentMethod:
         while True:
             payment_method = None
             try:
@@ -405,7 +405,7 @@ class ActionExecutor:
                 continue
             return payment_method
 
-    def _read_order_confirmation(self, cart: dict[str, int], payment_method: PaymentMethod) -> bool:
+    def _read_order_confirmation(self, cart: list[dict], payment_method: PaymentMethod) -> bool:
         # Show order details
         subtotal, discount, total = self._calculate_totals(cart=cart)
         Printer.order_review(
@@ -434,9 +434,7 @@ class ActionExecutor:
             discount = 0.0
         return subtotal, discount, round(subtotal - discount, 2)
 
-    def _place_order(
-        self, current_user: dict, cart: list[dict[str, int]], payment_method: PaymentMethod
-    ) -> tuple[bool, str]:
+    def _place_order(self, current_user: dict, cart: list[dict], payment_method: PaymentMethod) -> tuple[bool, str]:
         if current_user is None:
             return False, "Please log in first"
 
@@ -455,14 +453,14 @@ class ActionExecutor:
 
             product = self._find_product(product_name=product_name)
             if product["stock"] < quantity:
-                return False, f"'{product_name}' is out of stock."
+                return False, f"Not enough stock for '{product_name}'."
 
         if payment_method is None:
             return False, "Payment method cannot be empty."
 
         subtotal, discount, total = self._calculate_totals(cart=cart)
 
-        # Check user‘s balance
+        # Check user's balance
         if current_user["balance"] < total:
             return False, "Payment failed: insufficient balance."
 
