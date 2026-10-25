@@ -3,6 +3,7 @@ class Printer:
     GREEN = "\033[92m"
     RED = "\033[91m"
     YELLOW = "\033[93m"
+    CYAN = "\033[96m"
     RESET = "\033[0m"
 
     @staticmethod
@@ -41,6 +42,32 @@ class Printer:
         print(f"Orders of ${rule['threshold']:.2f} or more get {rule['percentage']}% off.")
 
     @staticmethod
+    def order_review(
+        items: list[dict],
+        subtotal: float,
+        discount: float,
+        total: float,
+        percentage: float,
+        payment_method: str,
+    ) -> None:
+        print("\n=== Order Review ===")
+        for item in items:
+            line_total = item["price"] * item["quantity"]
+            print(f"{item['name']:<28} x {item['quantity']:<3} {line_total:>14.2f}")
+        print("-" * 56)
+        print(f"{'Subtotal':<34} {subtotal:>14.2f}")
+        if discount > 0:
+            print(f"{f'Discount ({percentage:g}%)':<34} {-discount:>14.2f}")
+        else:
+            print(f"{'Discount':<34} {0:>14.2f}")
+        print(f"{'Total':<34} {total:>14.2f}")
+        print(f"\nPayment method: {payment_method}")
+
+    @staticmethod
+    def user_balance(user: dict) -> None:
+        Printer.info(f"Remaining balance: {user['balance']:.2f}")
+
+    @staticmethod
     def goodbye(user: dict | None) -> None:
         name = user["username"] if user else "guest"
         print("\n" + "=" * 56)
@@ -73,3 +100,7 @@ class Printer:
     @staticmethod
     def deny_error(error_info: str) -> None:
         print(f"{Printer.RED}[ACCESS DENIED]{Printer.RESET} {error_info}")
+
+    @staticmethod
+    def info(info: str) -> None:
+        print(f"{Printer.CYAN}[INFO]{Printer.RESET} {info}")

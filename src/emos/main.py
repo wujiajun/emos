@@ -7,6 +7,7 @@ def main() -> None:
     users: list[dict] = []
     products: list[dict] = []
     discount_rule: dict = {}
+    orders: list[dict] = []
     init(users, products, discount_rule)
     Printer.welcome()
     Printer.users(users=users)
@@ -30,7 +31,7 @@ def main() -> None:
             Printer.error("Invalid option. Please choose a number from the menu.")
         else:
             action = actions[choice]
-            actionExecutor = ActionExecutor(users=users, products=products, discount_rule=discount_rule)
+            actionExecutor = ActionExecutor(users=users, products=products, discount_rule=discount_rule, orders=orders)
             current_user = actionExecutor.handle_action(action=action, current_user=current_user)
 
     Printer.goodbye(current_user)
@@ -42,12 +43,12 @@ def init(
     discount_rule: dict,
 ) -> None:
     # Users: 2 buyers, 2 sellers, 1 admin, 1 disabled buyer
-    users.append(user(username="alice", password="alice123", role=Role.BUYER.value, active=True))
-    users.append(user(username="bob", password="bob123", role=Role.BUYER.value, active=True))
-    users.append(user(username="sam", password="sam123", role=Role.SELLER.value, active=True))
-    users.append(user(username="sara", password="sara123", role=Role.SELLER.value, active=True))
-    users.append(user(username="ada", password="ada123", role=Role.ADMIN.value, active=True))
-    users.append(user(username="dave", password="dave123", role=Role.BUYER.value, active=False))
+    users.append(user(username="alice", password="alice123", role=Role.BUYER.value, active=True, balance=500.0))
+    users.append(user(username="bob", password="bob123", role=Role.BUYER.value, active=True, balance=20.0))
+    users.append(user(username="sam", password="sam123", role=Role.SELLER.value, active=True, balance=0.0))
+    users.append(user(username="sara", password="sara123", role=Role.SELLER.value, active=True, balance=0.0))
+    users.append(user(username="ada", password="ada123", role=Role.ADMIN.value, active=True, balance=0.0))
+    users.append(user(username="dave", password="dave123", role=Role.BUYER.value, active=False, balance=100.0))
 
     # Products: sam's items
     products.append(product(name="USB Cable", price=9.99, seller="sam", stock=50))

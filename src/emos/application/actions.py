@@ -1,8 +1,13 @@
 from enum import StrEnum
 from getpass import getpass
 
-from emos.domain.models import Role
+from emos.domain.models import Role, order, OrderStatus
 from emos.outputs import Printer
+
+
+class PaymentMethod(StrEnum):
+    CREDIT = "credit"
+    DEBIT = "debit"
 
 
 class Action(StrEnum):
@@ -48,10 +53,11 @@ MENUS: dict[str | None, list[tuple[str, str]]] = {
 
 
 class ActionExecutor:
-    def __init__(self, users: list[dict], products: list[dict], discount_rule: dict):
+    def __init__(self, users: list[dict], products: list[dict], discount_rule: dict, orders: list[dict]):
         self._users = users
         self._products = products
         self._discount_rule = discount_rule
+        self._orders = orders
 
     def handle_action(self, action: str, current_user: dict) -> dict:
         allowed, error_message = self._check_permission(user=current_user, action=action)
@@ -153,6 +159,18 @@ class ActionExecutor:
             else:
                 Printer.success(message)
                 Printer.discount_rule(self._discount_rule)
+        elif Action.ORDER.value == action:
+            cart, payment_method = self._read_order_input()
+            if len(cart) > 0:
+                succeeded, message = self._place_order(
+                    current_user=current_user, cart=cart, payment_method=payment_method
+                )
+                if succeeded is False:
+                    Printer.error(message)
+                else:
+                    Printer.success(message)
+                    Printer.user_balance(current_user)
+
         return current_user
 
     def _check_permission(self, user: dict, action: str) -> tuple[bool, str]:
@@ -281,6 +299,7 @@ class ActionExecutor:
         for u in self._users:
             if u.get("username") == username:
                 return u
+        return None
 
     def _discount(self, new_threshold: float, new_percentage: float) -> tuple[bool, str]:
         if new_threshold <= 0 or new_percentage <= 0 or new_percentage > 100:
@@ -291,3 +310,178 @@ class ActionExecutor:
         self._discount_rule["threshold"] = new_threshold
         self._discount_rule["percentage"] = new_percentage
         return True, "Discount rule updated."
+
+    def _find_product(self, proeuct_name: str) -> dict:
+        for p in self._products:
+            if p.get("name") == proeuct_name:
+                return p
+        return None
+
+    def _read_order_input(self) -> dict[dict[str, int], PaymentMethod]:
+        print("\n=== Place Order ===")
+        print("Press Enter on an empty product name when you are done.")
+
+        cart: list[dict[str, int]] = []
+
+        while True:
+            finished, product = self._read_order_product()
+            if finished is True:
+                if len(cart) == 0:
+                    Printer.error("Your cart is empty. Order cancelled.")
+                    return cart, None
+                else:
+                    break
+            quantity = self._read_order_product_quantity()
+
+            # add product to cart
+            self._add_to_cart(cart=cart, product=product, quantity=quantity)
+
+        payment_method = self._read_order_payment_method()
+        confirmed = self._read_order_confirmation(cart, payment_method)
+        if confirmed is False:
+            # Cancel order
+            cart.clear()
+            return cart, None
+        else:
+            return cart, payment_method
+
+    def _read_order_product(self) -> tuple[bool, dict]:
+        while True:
+            name = input("Product name (Enter to finish): ").strip()
+            if not name:
+                return True, None
+            product = self._find_product(name)
+            if product is None:
+                Printer.error("Product not found.")
+                continue
+            else:
+                return False, product
+
+    def _read_order_product_quantity(self) -> PaymentMethod:
+        while True:
+            quantity = None
+            try:
+                quantity_raw = input("Quantity: ").strip()
+                quantity = float(quantity_raw)
+            except ValueError:
+                Printer.error("Quantity must be a positive whole number.")
+                continue
+            if quantity is None or quantity <= 0:
+                Printer.error("Quantity must be a positive whole number.")
+                continue
+            else:
+                return quantity
+
+    def _add_to_cart(self, cart: list[dict], product: dict, quantity: int) -> bool:
+        existing = next((i for i in cart if i["name"] == product["name"]), None)
+        in_cart = existing["quantity"] if existing else 0
+
+        if in_cart + quantity > product["stock"]:
+            Printer.error(
+                f"Only {product['stock']} of '{product['name']}' in stock (you already have {in_cart} in your cart)."
+            )
+            return False
+
+        if existing:
+            existing["quantity"] += quantity
+        else:
+            cart.append({"name": product["name"], "price": product["price"], "quantity": quantity})
+        return True
+
+    def _read_order_payment_method(self) -> float:
+        while True:
+            payment_method = None
+            try:
+                payment_method_raw = input("Payment method (credit / debit): ").strip().lower()
+                payment_method = PaymentMethod(payment_method_raw)
+            except ValueError:
+                Printer.error("Invalid payment information. Choose one of: credit, debit.")
+                continue
+            if payment_method is None:
+                Printer.error("Payment method cannot be empty.")
+                continue
+            else:
+                return payment_method
+
+    def _read_order_confirmation(self, cart: dict[str, int], payment_mothod: PaymentMethod) -> bool:
+        # Show order details
+        subtotal, discount, total = self._calculate_totals(cart=cart)
+        Printer.order_review(
+            items=cart,
+            subtotal=subtotal,
+            discount=discount,
+            total=total,
+            percentage=self._discount_rule["percentage"],
+            payment_method=payment_mothod.value,
+        )
+        while True:
+            answer = input("Confirm order? (y/n): ").strip().lower()
+            if answer == "y":
+                return True
+            elif answer == "n":
+                Printer.info("Order cancelled.")
+                return False
+            else:
+                Printer.error("Please enter y or n.")
+
+    def _calculate_totals(self, cart: list[dict]) -> tuple[float, float, float]:
+        subtotal = sum(item["price"] * item["quantity"] for item in cart)
+        if subtotal >= self._discount_rule["threshold"]:
+            discount = round(subtotal * self._discount_rule["percentage"] / 100, 2)
+        else:
+            discount = 0.0
+        return subtotal, discount, round(subtotal - discount, 2)
+
+    def _place_order(
+        self, current_user: dict, cart: list[dict[str, int]], payment_method: PaymentMethod
+    ) -> tuple[bool, str]:
+        if current_user is None:
+            return False, "Please log in first"
+
+        if current_user["role"] != Role.BUYER.value:
+            return False, "Access denied for your role[Seller or Admin]"
+
+        if len(cart) == 0:
+            return False, "Your cart is empty. Order cancelled."
+
+        for item in cart:
+            product_name = item["name"]
+            quantity = item["quantity"]
+
+            if quantity <= 0:
+                return False, f"Quantity for '{product_name}' must be a positive whole number."
+
+            product = self._find_product(proeuct_name=product_name)
+            if product["stock"] < quantity:
+                return False, f"'{product_name}' is out of stock."
+
+        if payment_method is None:
+            return False, "Payment method cannot be empty."
+
+        subtotal, discount, total = self._calculate_totals(cart=cart)
+
+        # Check user‘s balance
+        if current_user["balance"] < total:
+            return False, "Payment failed: insufficient balance."
+
+        order_id = len(self._orders) + 1
+        new_order = order(
+            order_id=order_id,
+            buyer=current_user["username"],
+            items=cart,
+            subtotal=subtotal,
+            discount=discount,
+            total=total,
+            payment_method=payment_method,
+            status=OrderStatus.CONFIRMED.value,
+        )
+        self._orders.append(new_order)
+
+        current_user["balance"] = current_user["balance"] - total
+
+        for item in cart:
+            product = self._find_product(proeuct_name=item["name"])
+            quantity = item["quantity"]
+            product["stock"] = product["stock"] - quantity
+
+        return True, f"Order confirmed. Order #{order_id}."
