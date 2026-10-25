@@ -1,4 +1,5 @@
 class Printer:
+    # ANSI colors
     GREEN = "\033[92m"
     RED = "\033[91m"
     YELLOW = "\033[93m"
@@ -32,6 +33,7 @@ class Printer:
             print("[INFO] No products found.")
         else:
             for i, p in enumerate(products, start=1):
+                # stock 0 is shown as OUT
                 stock = "OUT" if p["stock"] == 0 else p["stock"]
                 print(f"{i:<3} {p['name']:<28} {p['price']:>8.2f}  {p['seller']:<7} {stock:>5}")
 
@@ -49,6 +51,7 @@ class Printer:
         percentage: float,
         payment_method: str,
     ) -> None:
+        """Print the order review before the user confirms."""
         print("\n=== Order Review ===")
         for item in items:
             line_total = item["price"] * item["quantity"]
@@ -75,10 +78,12 @@ class Printer:
 
     @staticmethod
     def menus(logged_in_user: dict, menus: dict[str | None, list[tuple[str, str]]]) -> list[str]:
+        """Print the menu for the current role and return the action names."""
         role = logged_in_user["role"] if logged_in_user else None
         title = f"{logged_in_user['username']}, {role}" if logged_in_user else "guest"
         items = menus.get(role)
 
+        # "exit" goes first so the menu number matches the list index
         commands: list[str] = []
         print(f"\n=== Main Menu ({title}) ===")
         for i, item in enumerate(items, start=1):

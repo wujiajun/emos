@@ -1,7 +1,8 @@
-# role: Buyer, Seller, Admin
+# Records are plain dicts, collections are lists of dicts (see Part B)
 from enum import StrEnum
 
 
+# Guest is only used in permission checks, it is never stored in users
 class Role(StrEnum):
     GUEST = "Guest"
     BUYER = "Buyer"
@@ -47,6 +48,7 @@ def rule(
     threshold: float,
     percentage: float,
 ) -> dict:
+    # percentage 10 means 10% off
     return {
         "threshold": threshold,
         "percentage": percentage,
@@ -63,6 +65,7 @@ def order(
     payment_method: str,
     status: str,
 ) -> dict:
+    # items: list of {name, price, quantity}, price at the time of the order
     return {
         "id": order_id,
         "buyer": buyer,

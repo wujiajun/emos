@@ -4,6 +4,7 @@ from emos.outputs import Printer
 
 
 def main() -> None:
+    # so Ctrl+C / Ctrl+D do not print a traceback
     try:
         run()
     except (KeyboardInterrupt, EOFError):
@@ -12,6 +13,7 @@ def main() -> None:
 
 
 def run() -> None:
+    """Set up the data, then run the menu loop until the user exits."""
     users: list[dict] = []
     products: list[dict] = []
     discount_rule: dict = {}
@@ -22,7 +24,7 @@ def run() -> None:
     Printer.products(products=products)
     Printer.discount_rule(discount_rule)
 
-    current_user = None
+    current_user = None  # None = guest
     running = True
 
     while running is True:
@@ -38,7 +40,9 @@ def run() -> None:
         elif not (0 <= choice <= len(actions)):
             Printer.error("Invalid option. Please choose a number from the menu.")
         else:
+            # actions[0] is "exit", so the menu number is also the list index
             action = actions[choice]
+            # login and logout return a different current_user
             actionExecutor = ActionExecutor(users=users, products=products, discount_rule=discount_rule, orders=orders)
             current_user = actionExecutor.handle_action(action=action, current_user=current_user)
 
@@ -50,6 +54,7 @@ def init(
     products: list[dict],
     discount_rule: dict,
 ) -> None:
+    """Fill in the sample users, products and discount rule."""
     # Users: 2 buyers, 2 sellers, 1 admin, 1 disabled buyer
     users.append(user(username="alice", password="alice123", role=Role.BUYER.value, active=True, balance=500.0))
     users.append(user(username="bob", password="bob123", role=Role.BUYER.value, active=True, balance=20.0))

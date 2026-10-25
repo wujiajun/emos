@@ -24,6 +24,7 @@ class Action(StrEnum):
     DISCOUNT = "discount"
 
 
+# menu options for each role: (action, label)
 MENUS: dict[str | None, list[tuple[str, str]]] = {
     # None = guest (not logged in)
     None: [
@@ -60,11 +61,14 @@ class ActionExecutor:
         self._orders = orders
 
     def handle_action(self, action: str, current_user: dict) -> dict:
+        """Run one menu action and return the current user (only login and logout change it)."""
+        # permission check first
         allowed, error_message = self._check_permission(user=current_user, action=action)
         if allowed is False:
             Printer.deny_error(error_message)
             return current_user
 
+        # then read the input and run the action
         if Action.LOGIN.value == action:
             print("\n=== Login ===")
             username = input("Username: ").strip()
@@ -79,6 +83,7 @@ class ActionExecutor:
             print("\n=== Browse ===")
             print("Press Enter to skip any filter.")
             keyword = input("Product name contains: ").strip()
+            # empty means no limit
             min_price = None
             max_price = None
             try:
@@ -131,6 +136,7 @@ class ActionExecutor:
             change_role_username = input("Username to change: ").strip()
             new_role = None
             try:
+                # capitalize so "buyer" also works
                 new_role_raw = input("New role (Buyer / Seller / Admin): ").strip().capitalize()
                 new_role = Role(new_role_raw)
             except ValueError:
@@ -160,6 +166,7 @@ class ActionExecutor:
                 Printer.success(message)
                 Printer.discount_rule(self._discount_rule)
         elif Action.ORDER.value == action:
+            # empty cart means the order was cancelled or nothing was added
             cart, payment_method = self._read_order_input()
             if len(cart) > 0:
                 succeeded, message = self._place_order(
@@ -174,6 +181,7 @@ class ActionExecutor:
         return current_user
 
     def _check_permission(self, user: dict, action: str) -> tuple[bool, str]:
+        """Check if this user is allowed to do this action. Returns (allowed, message)."""
         required_role: Role = None
 
         match action:
@@ -194,18 +202,18 @@ class ActionExecutor:
             case Action.DISCOUNT.value:
                 required_role = Role.ADMIN
 
-        # All users have this permission
+        # no role needed (browse, logout)
         if required_role is None:
             return True, ""
 
-        # Only guests have this permission
+        # login is only for guests
         if required_role == Role.GUEST:
             if user is None:
                 return True, ""
             else:
                 return False, f"You are already logged in as {user['username']}. Please log out first."
 
-        # Only logged-in users have this permission
+        # the rest need a logged-in user with the right role
         if user is None:
             return False, "Please log in first"
 
@@ -219,6 +227,8 @@ class ActionExecutor:
         username: str,
         password: str,
     ) -> tuple[dict | None, str]:
+        """Check username and password. Returns the user, or None if login fails."""
+        # check in order: user exists, account active, password correct
         for user in self._users:
             if username == user.get("username"):
                 if user.get("active") is not True:
@@ -234,6 +244,7 @@ class ActionExecutor:
         min_price: float | None,
         max_price: float | None,
     ) -> list:
+        """Return the products that match the name keyword and the price range."""
         return [
             product
             for product in self._products
@@ -249,6 +260,7 @@ class ActionExecutor:
         return [product for product in self._products if product.get("seller") == username]
 
     def _set_price(self, current_user: dict, product_name: str, new_price: float) -> tuple[bool, str]:
+        """Let a seller change the price of one of their own products."""
         username = current_user.get("username")
         product = None
         for p in self._products:
@@ -275,6 +287,7 @@ class ActionExecutor:
         if user is None:
             return False, "User not found."
 
+        # admin accounts are protected
         if user.get("role") == Role.ADMIN.value:
             return False, "Admin accounts cannot be disabled."
 
@@ -282,6 +295,7 @@ class ActionExecutor:
         return True, f"User '{username}' has been disabled."
 
     def _change_role(self, username: str, role: Role) -> tuple[bool, str]:
+        # Guest is not a real role for a user
         if role == Role.GUEST:
             return False, "Invalid role. Choose Buyer, Seller or Admin."
         user = self._find_user(username=username)
@@ -318,11 +332,13 @@ class ActionExecutor:
         return None
 
     def _read_order_input(self) -> tuple[list[dict], PaymentMethod | None]:
+        """Read the cart, payment method and confirmation. Does not change any data yet."""
         print("\n=== Place Order ===")
         print("Press Enter on an empty product name when you are done.")
 
         cart: list[dict] = []
 
+        # keep adding products until an empty name
         while True:
             finished, product = self._read_order_product()
             if finished is True:
@@ -333,7 +349,7 @@ class ActionExecutor:
                     break
             quantity = self._read_order_product_quantity()
 
-            # add product to cart
+            # add_to_cart checks the stock and merges the same product
             self._add_to_cart(cart=cart, product=product, quantity=quantity)
 
         payment_method = self._read_order_payment_method()
@@ -373,8 +389,10 @@ class ActionExecutor:
                 return quantity
 
     def _add_to_cart(self, cart: list[dict], product: dict, quantity: int) -> bool:
+        """Add a product to the cart if there is enough stock."""
         existing = next((i for i in cart if i["name"].lower() == product["name"].lower()), None)
         in_cart = existing["quantity"] if existing else 0
+        # the stock check also counts what is already in the cart
 
         if product["stock"] <= 0:
             Printer.error(f"'{product['name']}' is out of stock.")
@@ -427,6 +445,8 @@ class ActionExecutor:
                 Printer.error("Please enter y or n.")
 
     def _calculate_totals(self, cart: list[dict]) -> tuple[float, float, float]:
+        """Work out subtotal, discount and total for a cart."""
+        # used by the order review and by place_order, so both show the same numbers
         subtotal = round(sum(item["price"] * item["quantity"] for item in cart), 2)
         if subtotal >= self._discount_rule["threshold"]:
             discount = round(subtotal * self._discount_rule["percentage"] / 100, 2)
@@ -435,6 +455,8 @@ class ActionExecutor:
         return subtotal, discount, round(subtotal - discount, 2)
 
     def _place_order(self, current_user: dict, cart: list[dict], payment_method: PaymentMethod) -> tuple[bool, str]:
+        """Check everything again and, if it all passes, save the order and update balance and stock."""
+        # Step 1: permission (handle_action already checked, this is the second check)
         if current_user is None:
             return False, "Please log in first"
 
@@ -444,6 +466,7 @@ class ActionExecutor:
         if len(cart) == 0:
             return False, "Your cart is empty. Order cancelled."
 
+        # Step 2: stock check, the stock may have changed since the cart was built
         for item in cart:
             product_name = item["name"]
             quantity = item["quantity"]
@@ -458,12 +481,14 @@ class ActionExecutor:
         if payment_method is None:
             return False, "Payment method cannot be empty."
 
+        # Step 3: totals and discount
         subtotal, discount, total = self._calculate_totals(cart=cart)
 
-        # Check user's balance
+        # Step 4: balance
         if current_user["balance"] < total:
             return False, "Payment failed: insufficient balance."
 
+        # Step 5: save the order, then take the money and the stock
         order_id = len(self._orders) + 1
         new_order = order(
             order_id=order_id,
