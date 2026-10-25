@@ -4,6 +4,14 @@ from emos.outputs import Printer
 
 
 def main() -> None:
+    try:
+        run()
+    except (KeyboardInterrupt, EOFError):
+        print()
+        Printer.info("Interrupted. Exiting.")
+
+
+def run() -> None:
     users: list[dict] = []
     products: list[dict] = []
     discount_rule: dict = {}

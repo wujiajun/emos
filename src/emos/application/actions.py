@@ -1,7 +1,7 @@
 from enum import StrEnum
 from getpass import getpass
 
-from emos.domain.models import Role, order, OrderStatus
+from emos.domain.models import OrderStatus, Role, order
 from emos.outputs import Printer
 
 
@@ -311,9 +311,9 @@ class ActionExecutor:
         self._discount_rule["percentage"] = new_percentage
         return True, "Discount rule updated."
 
-    def _find_product(self, proeuct_name: str) -> dict:
+    def _find_product(self, product_name: str) -> dict:
         for p in self._products:
-            if p.get("name") == proeuct_name:
+            if p.get("name").lower() == product_name.lower():
                 return p
         return None
 
@@ -362,7 +362,7 @@ class ActionExecutor:
             quantity = None
             try:
                 quantity_raw = input("Quantity: ").strip()
-                quantity = float(quantity_raw)
+                quantity = int(quantity_raw)
             except ValueError:
                 Printer.error("Quantity must be a positive whole number.")
                 continue
@@ -373,9 +373,12 @@ class ActionExecutor:
                 return quantity
 
     def _add_to_cart(self, cart: list[dict], product: dict, quantity: int) -> bool:
-        existing = next((i for i in cart if i["name"] == product["name"]), None)
+        existing = next((i for i in cart if i["name"].lower() == product["name"].lower()), None)
         in_cart = existing["quantity"] if existing else 0
 
+        if product["stock"] <= 0:
+            Printer.error(f"'{product['name']}' is out of stock.")
+            return False
         if in_cart + quantity > product["stock"]:
             Printer.error(
                 f"Only {product['stock']} of '{product['name']}' in stock (you already have {in_cart} in your cart)."
@@ -394,16 +397,15 @@ class ActionExecutor:
             try:
                 payment_method_raw = input("Payment method (credit / debit): ").strip().lower()
                 payment_method = PaymentMethod(payment_method_raw)
+                if not payment_method:
+                    Printer.error("Payment method cannot be empty.")
+                    continue
             except ValueError:
                 Printer.error("Invalid payment information. Choose one of: credit, debit.")
                 continue
-            if payment_method is None:
-                Printer.error("Payment method cannot be empty.")
-                continue
-            else:
-                return payment_method
+            return payment_method
 
-    def _read_order_confirmation(self, cart: dict[str, int], payment_mothod: PaymentMethod) -> bool:
+    def _read_order_confirmation(self, cart: dict[str, int], payment_method: PaymentMethod) -> bool:
         # Show order details
         subtotal, discount, total = self._calculate_totals(cart=cart)
         Printer.order_review(
@@ -412,7 +414,7 @@ class ActionExecutor:
             discount=discount,
             total=total,
             percentage=self._discount_rule["percentage"],
-            payment_method=payment_mothod.value,
+            payment_method=payment_method.value,
         )
         while True:
             answer = input("Confirm order? (y/n): ").strip().lower()
@@ -425,7 +427,7 @@ class ActionExecutor:
                 Printer.error("Please enter y or n.")
 
     def _calculate_totals(self, cart: list[dict]) -> tuple[float, float, float]:
-        subtotal = sum(item["price"] * item["quantity"] for item in cart)
+        subtotal = round(sum(item["price"] * item["quantity"] for item in cart), 2)
         if subtotal >= self._discount_rule["threshold"]:
             discount = round(subtotal * self._discount_rule["percentage"] / 100, 2)
         else:
@@ -451,7 +453,7 @@ class ActionExecutor:
             if quantity <= 0:
                 return False, f"Quantity for '{product_name}' must be a positive whole number."
 
-            product = self._find_product(proeuct_name=product_name)
+            product = self._find_product(product_name=product_name)
             if product["stock"] < quantity:
                 return False, f"'{product_name}' is out of stock."
 
@@ -480,7 +482,7 @@ class ActionExecutor:
         current_user["balance"] = current_user["balance"] - total
 
         for item in cart:
-            product = self._find_product(proeuct_name=item["name"])
+            product = self._find_product(product_name=item["name"])
             quantity = item["quantity"]
             product["stock"] = product["stock"] - quantity
 
